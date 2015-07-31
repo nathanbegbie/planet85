@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Matter</title>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="js/phaser.min.js"></script>
+</head>
+<body>
+<script>
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+
+function preload() {
+    game.load.image('sky', 'assets/sky.png');
+    game.load.image('ground', 'assets/platform.png');
+    game.load.image('tank', 'assets/tank.png');
+    this.load.image('turret', 'assets/turret.png');
+}
+
+var player;
+var platforms;
+var cursors;
+var turret;
+
+function create() {
+    //enable Arcade Physics
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+    //simple background
+    game.add.sprite(0, 0, 'sky');
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = game.add.group();
+    //  We will enable physics for any object that is created in this group
+    platforms.enableBody = true;
+    //create the ground
+    var ground = platforms.create(0, game.world.height - 64, 'ground');
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    ground.scale.setTo(2, 2);
+    //  This stops it from falling away when you jump on it
+    ground.body.immovable = true;
+    //add tank
+    player = game.add.sprite(32, game.world.height - 100, 'tank');
+
+    //  The turret which we rotate 
+    turret = game.add.sprite(player.x + 55, player.y + 20, 'turret');
+
+    //  We need to enable physics on the player
+    game.physics.arcade.enable(player);
+    game.physics.arcade.enable(turret);
+    
+    //player physics properties
+    //player.body.bounce.y = 0.2;
+    //player.body.gravity.y = 300;
+    player.body.collideWorldBounds = true;
+    //turret.body.bounce.y = 0.2;
+    //turret.body.gravity.y = 300;
+    turret.body.collideWorldBounds = true;
+    //  Our controls.
+    cursors = game.input.keyboard.createCursorKeys();
+
+}
+
+function update() {
+    //  Collide the player with the platforms
+    game.physics.arcade.collide(player, platforms);
+    game.physics.arcade.collide(turret, platforms);
+
+    //  Reset the players velocity (movement)
+    player.body.velocity.x = 0;
+    turret.body.velocity.x = 0;
+
+    if (cursors.left.isDown)
+    {
+        //  Move to the left
+        player.body.velocity.x = -150;
+        turret.body.velocity.x = -150;
+    }
+    else if (cursors.right.isDown)
+    {
+        //  Move to the right
+        player.body.velocity.x = 150;
+        turret.body.velocity.x = 150;
+    }
+    else if (cursors.up.isDown && turret.angle > -90)
+    {
+        turret.angle--;
+    }
+    else if (cursors.down.isDown && turret.angle < 30)
+    {
+        turret.angle++;
+    }
+    else
+    {
+        //  Stand still
+        player.animations.stop();
+    }
+}
+
+</script>
+
+</body>
+</html>
