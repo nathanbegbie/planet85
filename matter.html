@@ -9,11 +9,111 @@
 <script>
     var game = new Phaser.Game(800, 600, Phaser.CANVAS, '', { preload: preload, create: create, update: update });
 
+////////////////////////////////////////////BULLETS/////////////////////////////////////////
+    //  Our core Bullet class
+    //  This is a simple Sprite object that we set a few properties on
+    //  It is fired by all of the Weapon classes
+
+    var Bullet = function (game, key) {
+
+        Phaser.Sprite.call(this, game, 0, 0, key);
+
+        this.texture.baseTexture.scaleMode = PIXI.scaleModes.NEAREST;
+
+        this.anchor.set(0.5);
+
+        this.checkWorldBounds = true;
+        this.outOfBoundsKill = true;
+        this.exists = false;
+
+        this.tracking = false;
+        this.scaleSpeed = 0;
+
+    };
+
+    Bullet.prototype = Object.create(Phaser.Sprite.prototype);
+    Bullet.prototype.constructor = Bullet;
+
+    Bullet.prototype.fire = function (x, y, angle, speed, gx, gy) {
+
+        gx = gx || 0;
+        gy = gy || 0;
+
+        this.reset(x, y);
+        this.scale.set(1);
+
+        this.game.physics.arcade.velocityFromAngle(angle, speed, this.body.velocity);
+
+        this.angle = angle;
+
+        this.body.gravity.set(gx, gy);
+
+    };
+
+    Bullet.prototype.update = function () {
+
+        if (this.tracking)
+        {
+            this.rotation = Math.atan2(this.body.velocity.y, this.body.velocity.x);
+        }
+
+        if (this.scaleSpeed > 0)
+        {
+            this.scale.x += this.scaleSpeed;
+            this.scale.y += this.scaleSpeed;
+        }
+
+    };
+
+    var Weapon = {};
+
+
+    Weapon.Beam = function (game) {
+
+        Phaser.Group.call(this, game, game.world, 'Beam', false, true, Phaser.Physics.ARCADE);
+
+        this.nextFire = 0;
+        this.bulletSpeed = 500;
+        this.fireRate = 10;
+
+        for (var i = 0; i < 64; i++)
+        {
+            this.add(new Bullet(game, 'bullet'), true);
+        }
+
+        return this;
+
+    };
+
+    Weapon.Beam.prototype = Object.create(Phaser.Group.prototype);
+    Weapon.Beam.prototype.constructor = Weapon.Beam;
+
+    Weapon.Beam.prototype.fire = function (source) {
+
+        if (this.game.time.time < this.nextFire) { return; }
+
+        //  Now work out where the END of the turret is
+        var p = new Phaser.Point(source.x, source.y);
+        p.rotate(p.x, p.y, source.rotation, false, 34);
+
+        var x = source.x;
+        var y = source.y;
+
+        var b = this.getFirstExists(false);
+
+        if(b) b.fire(p.x, p.y, source.angle, this.bulletSpeed, 0, 0);
+
+        this.nextFire = this.game.time.time + this.fireRate;
+
+    };
+////////////////////////////////////////////////////////////////////////////////////////////
+
 function preload() {
     game.load.image('sky', 'assets/sky.png');
     game.load.image('ground', 'assets/platform.png');
     game.load.image('tank', 'assets/tank.png');
-    this.load.image('turret', 'assets/turret.png');
+    game.load.image('turret', 'assets/turret.png');
+    game.load.image('bullet', 'assets/bullet.png');
 }
 
 var player;
@@ -21,11 +121,22 @@ var platforms;
 var cursors;
 var turret;
 
+var weapons = [];
+var currentWeapon = 0;
+
 function create() {
+    game.renderer.renderSession.roundPixels = true;
     //enable Arcade Physics
     game.physics.startSystem(Phaser.Physics.ARCADE);
+    //add the beam to the weapon arsenal
+    weapons.push(new Weapon.Beam(game)); 
+    currentWeapon = 0;
+    for (var i = 1; i < weapons.length; i++)
+    {
+        weapons[i].visible = false;
+    }
     //simple background
-    game.add.sprite(0, 0, 'sky');
+    //game.add.sprite(0, 0, 'sky');
     //  The platforms group contains the ground and the 2 ledges we can jump on
     platforms = game.add.group();
     //  We will enable physics for any object that is created in this group
@@ -55,6 +166,7 @@ function create() {
     turret.body.collideWorldBounds = true;
     //  Our controls.
     cursors = game.input.keyboard.createCursorKeys();
+    game.input.keyboard.addKeyCapture([ Phaser.Keyboard.SPACEBAR ]);
 
 }
 
@@ -79,7 +191,8 @@ function update() {
         player.body.velocity.x = 150;
         
     }
-    else if (cursors.up.isDown && turret.angle > -90)
+    
+    if (cursors.up.isDown && turret.angle > -90)
     {
         turret.angle--;
     }
@@ -92,6 +205,12 @@ function update() {
         //  Stand still
         player.animations.stop();
     }
+
+    if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR))
+    {
+        weapons[currentWeapon].fire(turret);
+    }
+
     turret.body.x=player.body.x+55;
 }
 
